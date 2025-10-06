@@ -82,14 +82,8 @@ export const userService = {
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.page) params.append('page', filters.page.toString());
 
-    const response = await fetch(`http://localhost:5000/api/users/teachers?${params}`);
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch teachers');
-    }
-    
-    return data;
+    const response = await api.get(`/users/teachers?${params}`);
+    return response.data;
   },
 
   // Get current user profile
@@ -100,14 +94,8 @@ export const userService = {
 
   // Get user by ID
   getUserById: async (userId: string) => {
-    const response = await fetch(`http://localhost:5000/api/users/${userId}`);
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch user');
-    }
-    
-    return data;
+    const response = await api.get(`/users/${userId}`);
+    return response.data;
   },
 
   // Update user profile

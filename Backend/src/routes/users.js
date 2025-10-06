@@ -4,6 +4,48 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
+// @desc    Get current user profile
+// @route   GET /api/users/profile
+// @access  Private
+router.get('/profile', protect, async (req, res) => {
+  try {
+    console.log('Profile request - req.user:', req.user); // Debug log
+    
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated properly'
+      });
+    }
+
+    const user = await User.findById(req.user._id).select('-password -__v');
+    console.log('Found user:', user ? 'Yes' : 'No'); // Debug log
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: user
+      }
+    });
+
+  } catch (error) {
+    console.error('Get profile error:', error.message);
+    console.error('Full error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching profile',
+      error: error.message
+    });
+  }
+});
+
 // @desc    Get all teachers (with optional filters)
 // @route   GET /api/users/teachers
 // @access  Public
@@ -137,29 +179,6 @@ router.put('/profile', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error updating profile'
-    });
-  }
-});
-
-// @desc    Get current user profile
-// @route   GET /api/users/profile
-// @access  Private
-router.get('/profile', protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        user: user.getPublicProfile()
-      }
-    });
-
-  } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching profile'
     });
   }
 });
