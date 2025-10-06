@@ -1,72 +1,110 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { userService } from "../services/user";
+
+interface DashboardData {
+  user: {
+    name: string;
+    avatar: string;
+  };
+  upcomingSessions: Array<{
+    id: string;
+    type: string;
+    skill: string;
+    teacher?: string;
+    student?: string;
+    date: string;
+    time: string;
+    status: string;
+    avatar: string;
+  }>;
+  recentMessages: Array<{
+    id: string;
+    name: string;
+    message: string;
+    time: string;
+    unread: boolean;
+    avatar: string;
+  }>;
+  stats: {
+    coinBalance: number;
+    sessionsThisMonth: number;
+    studentsTaught: number;
+    averageRating: number;
+  };
+  quickActions: Array<{
+    id: string;
+    icon: string;
+    label: string;
+    link: string;
+  }>;
+}
 
 function Dashboard() {
-  // Mock data for demonstration
-  const upcomingSessions = [
-    {
-      id: 1,
-      type: "learning",
-      skill: "React Development",
-      teacher: "Sarah Chen",
-      date: "Today",
-      time: "2:00 PM",
-      status: "confirmed",
-      avatar: "SC"
-    },
-    {
-      id: 2,
-      type: "teaching",
-      skill: "Spanish Conversation",
-      student: "Mike Johnson",
-      date: "Tomorrow",
-      time: "10:00 AM",
-      status: "pending",
-      avatar: "MJ"
-    },
-    {
-      id: 3,
-      type: "learning",
-      skill: "Guitar Basics",
-      teacher: "Alex Rivera",
-      date: "Dec 28",
-      time: "4:00 PM",
-      status: "confirmed",
-      avatar: "AR"
-    }
-  ];
+  const { user: currentUser } = useAuth();
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const recentMessages = [
-    {
-      id: 1,
-      name: "Sarah Chen",
-      message: "Looking forward to our React session today!",
-      time: "10 min ago",
-      unread: true,
-      avatar: "SC"
-    },
-    {
-      id: 2,
-      name: "Mike Johnson",
-      message: "Can we reschedule tomorrow's Spanish lesson?",
-      time: "1 hour ago",
-      unread: true,
-      avatar: "MJ"
-    },
-    {
-      id: 3,
-      name: "Emma Davis",
-      message: "Thanks for the great Python session!",
-      time: "2 hours ago",
-      unread: false,
-      avatar: "ED"
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await userService.getDashboard();
+      setDashboardData(response.data);
+      setError('');
+    } catch (error: any) {
+      setError(error.message || 'Failed to load dashboard data');
+      console.error('Dashboard error:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="animate-pulse">
+          <div className="h-32 bg-gray-200 rounded-xl mb-8"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 h-96 bg-gray-200 rounded-xl"></div>
+            <div className="h-96 bg-gray-200 rounded-xl"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !dashboardData) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Failed to load dashboard</p>
+          <p className="text-sm text-gray-400">{error}</p>
+          <button
+            onClick={loadDashboardData}
+            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const { upcomingSessions, recentMessages, stats, quickActions } = dashboardData;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Welcome Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, John!</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Welcome back, {dashboardData.user.name.split(' ')[0]}!
+        </h1>
         <p className="text-gray-600">Here's what's happening with your learning journey</p>
       </div>
 
@@ -76,7 +114,7 @@ function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Coin Balance</p>
-              <p className="text-2xl font-bold text-yellow-600">250</p>
+              <p className="text-2xl font-bold text-yellow-600">{stats.coinBalance}</p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
               <span className="text-2xl">💰</span>
@@ -88,7 +126,7 @@ function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Sessions This Month</p>
-              <p className="text-2xl font-bold text-blue-600">12</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.sessionsThisMonth}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
               <span className="text-2xl">📚</span>
@@ -99,11 +137,15 @@ function Dashboard() {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Students Taught</p>
-              <p className="text-2xl font-bold text-green-600">8</p>
+              <p className="text-sm text-gray-600">
+                {currentUser?.role === 'teacher' ? 'Students Taught' : 'Teachers Learned From'}
+              </p>
+              <p className="text-2xl font-bold text-green-600">{stats.studentsTaught}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">👨‍🏫</span>
+              <span className="text-2xl">
+                {currentUser?.role === 'teacher' ? '👨‍🏫' : '🎓'}
+              </span>
             </div>
           </div>
         </div>
@@ -112,7 +154,7 @@ function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Average Rating</p>
-              <p className="text-2xl font-bold text-purple-600">4.9</p>
+              <p className="text-2xl font-bold text-purple-600">{stats.averageRating.toFixed(1)}</p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
               <span className="text-2xl">⭐</span>
@@ -189,7 +231,7 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Messages & Notifications */}
+        {/* Messages & Quick Actions */}
         <div className="space-y-6">
           {/* Recent Messages */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -229,27 +271,16 @@ function Dashboard() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
             <div className="space-y-3">
-              <Link 
-                to="/browse" 
-                className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-              >
-                <span className="text-2xl">🔍</span>
-                <span className="font-medium text-blue-700">Find Teachers</span>
-              </Link>
-              <Link 
-                to="/profile" 
-                className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-              >
-                <span className="text-2xl">👨‍🏫</span>
-                <span className="font-medium text-green-700">Update Teaching Profile</span>
-              </Link>
-              <Link 
-                to="/wallet" 
-                className="flex items-center space-x-3 p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
-              >
-                <span className="text-2xl">💰</span>
-                <span className="font-medium text-yellow-700">Buy Coins</span>
-              </Link>
+              {quickActions.map((action) => (
+                <Link 
+                  key={action.id}
+                  to={action.link}
+                  className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <span className="text-2xl">{action.icon}</span>
+                  <span className="font-medium text-gray-700">{action.label}</span>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
