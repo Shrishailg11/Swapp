@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -12,24 +14,42 @@ import NotFound from "./pages/NotFound";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<Layout><Home /></Layout>} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        
-        {/* Protected routes */}
-        <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
-        <Route path="/profile" element={<Layout><Profile /></Layout>} />
-        <Route path="/browse" element={<Layout><Browse /></Layout>} />
-        <Route path="/chat" element={<Layout><Chat /></Layout>} />
-        <Route path="/wallet" element={<Layout><Wallet /></Layout>} />
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Layout><Home /></Layout>} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/browse" element={<Layout><Browse /></Layout>} />
 
-        {/* IMPORTANT: DO NOT place any routes below this. */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Protected routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Layout><Dashboard /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Layout><Profile /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/chat" element={
+            <ProtectedRoute>
+              <Layout><Chat /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/wallet" element={
+            <ProtectedRoute>
+              <Layout><Wallet /></Layout>
+            </ProtectedRoute>
+          } />
+
+          {/* IMPORTANT: DO NOT place any routes below this. */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
