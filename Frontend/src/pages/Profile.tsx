@@ -1,68 +1,167 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { userService, UserProfile } from "../services/user";
 
 function Profile() {
+  const { user: currentUser, updateProfile } = useAuth();
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  // Mock user data
-  const user = {
-    name: "John Doe",
-    email: "john.doe@email.com",
-    avatar: "JD",
-    bio: "Passionate learner and teacher. I love sharing my knowledge in web development and learning new languages. Always excited to connect with fellow learners!",
-    location: "San Francisco, CA",
-    memberSince: "January 2024",
-    totalSessions: 45,
-    rating: 4.8,
-    reviews: 23,
-    coins: 250,
-    teachingSkills: [
-      { skill: "JavaScript", level: "Expert", sessions: 15, rating: 4.9 },
-      { skill: "React", level: "Advanced", sessions: 12, rating: 4.8 },
-      { skill: "Node.js", level: "Intermediate", sessions: 8, rating: 4.7 }
-    ],
-    learningSkills: [
-      { skill: "Spanish", level: "Beginner", progress: 30 },
-      { skill: "Guitar", level: "Beginner", progress: 15 },
-      { skill: "Data Science", level: "Intermediate", progress: 60 }
-    ],
+  // Form state for editing
+  const [formData, setFormData] = useState({
+    name: '',
+    bio: '',
+    location: '',
+    role: 'learner',
+    teachingSkills: [] as any[],
+    learningSkills: [] as any[],
     availability: {
-      monday: { available: true, hours: "9:00 AM - 5:00 PM" },
-      tuesday: { available: true, hours: "9:00 AM - 5:00 PM" },
-      wednesday: { available: false, hours: "" },
-      thursday: { available: true, hours: "2:00 PM - 8:00 PM" },
-      friday: { available: true, hours: "9:00 AM - 3:00 PM" },
-      saturday: { available: true, hours: "10:00 AM - 2:00 PM" },
-      sunday: { available: false, hours: "" }
+      monday: { available: false, hours: '' },
+      tuesday: { available: false, hours: '' },
+      wednesday: { available: false, hours: '' },
+      thursday: { available: false, hours: '' },
+      friday: { available: false, hours: '' },
+      saturday: { available: false, hours: '' },
+      sunday: { available: false, hours: '' }
+    }
+  });
+
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const response = await userService.getCurrentProfile();
+      const userData = response.data.user;
+      setUser(userData);
+      
+      // Initialize form data
+      setFormData({
+        name: userData.name || '',
+        bio: userData.bio || '',
+        location: userData.location || '',
+        role: userData.role || 'learner',
+        teachingSkills: userData.teachingSkills || [],
+        learningSkills: userData.learningSkills || [],
+        availability: userData.availability || formData.availability
+      });
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      setError('Failed to load profile');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const reviews = [
-    {
-      id: 1,
-      student: "Sarah M.",
-      skill: "JavaScript",
-      rating: 5,
-      comment: "John is an excellent teacher! He explained complex concepts in a very clear way.",
-      date: "2 days ago"
-    },
-    {
-      id: 2,
-      student: "Mike R.",
-      skill: "React",
-      rating: 5,
-      comment: "Great session on React hooks. Very patient and knowledgeable.",
-      date: "1 week ago"
-    },
-    {
-      id: 3,
-      student: "Emma L.",
-      skill: "Node.js",
-      rating: 4,
-      comment: "Helpful session on backend development. Would recommend!",
-      date: "2 weeks ago"
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    
+    try {
+      await updateProfile(formData);
+      await loadUserProfile(); // Reload data
+      setIsEditing(false);
+    } catch (error: any) {
+      setError(error.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
     }
-  ];
+  };
+
+  const handleCancel = () => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        bio: user.bio || '',
+        location: user.location || '',
+        role: user.role || 'learner',
+        teachingSkills: user.teachingSkills || [],
+        learningSkills: user.learningSkills || [],
+        availability: user.availability || formData.availability
+      });
+    }
+    setIsEditing(false);
+    setError('');
+  };
+
+  const addTeachingSkill = () => {
+    setFormData({
+      ...formData,
+      teachingSkills: [...formData.teachingSkills, { skill: '', level: 'beginner', hourlyRate: 25 }]
+    });
+  };
+
+  const removeTeachingSkill = (index: number) => {
+    setFormData({
+      ...formData,
+      teachingSkills: formData.teachingSkills.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateTeachingSkill = (index: number, field: string, value: any) => {
+    const updatedSkills = [...formData.teachingSkills];
+    updatedSkills[index] = { ...updatedSkills[index], [field]: value };
+    setFormData({ ...formData, teachingSkills: updatedSkills });
+  };
+
+  const addLearningSkill = () => {
+    setFormData({
+      ...formData,
+      learningSkills: [...formData.learningSkills, { skill: '', level: 'beginner', progress: 0 }]
+    });
+  };
+
+  const removeLearningSkill = (index: number) => {
+    setFormData({
+      ...formData,
+      learningSkills: formData.learningSkills.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateLearningSkill = (index: number, field: string, value: any) => {
+    const updatedSkills = [...formData.learningSkills];
+    updatedSkills[index] = { ...updatedSkills[index], [field]: value };
+    setFormData({ ...formData, learningSkills: updatedSkills });
+  };
+
+  const updateAvailability = (day: string, field: string, value: any) => {
+    setFormData({
+      ...formData,
+      availability: {
+        ...formData.availability,
+        [day]: {
+          ...formData.availability[day as keyof typeof formData.availability],
+          [field]: value
+        }
+      }
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="animate-pulse">
+          <div className="h-32 bg-gray-200 rounded-xl mb-8"></div>
+          <div className="h-64 bg-gray-200 rounded-xl"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <p className="text-gray-500">Failed to load profile</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -71,34 +170,85 @@ function Profile() {
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-6">
             <div className="w-24 h-24 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-              {user.avatar}
+              {user.avatar || user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{user.name}</h1>
-              <p className="text-gray-600 mb-2">{user.location}</p>
-              <p className="text-sm text-gray-500">Member since {user.memberSince}</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="border border-gray-300 rounded px-2 py-1"
+                  />
+                ) : (
+                  user.name
+                )}
+              </h1>
+              <p className="text-gray-600 mb-2">
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="Your location"
+                    className="border border-gray-300 rounded px-2 py-1"
+                  />
+                ) : (
+                  user.location || 'No location set'
+                )}
+              </p>
+              <p className="text-sm text-gray-500">Member since {new Date(user.memberSince).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
               <div className="flex items-center space-x-4 mt-3">
                 <div className="flex items-center space-x-1">
                   <span className="text-yellow-400">⭐</span>
-                  <span className="font-medium text-gray-700">{user.rating}</span>
-                  <span className="text-gray-500">({user.reviews} reviews)</span>
+                  <span className="font-medium text-gray-700">{user.stats.averageRating.toFixed(1)}</span>
+                  <span className="text-gray-500">({user.stats.totalReviews} reviews)</span>
                 </div>
                 <div className="text-gray-500">•</div>
-                <div className="text-gray-700">{user.totalSessions} sessions completed</div>
+                <div className="text-gray-700">{user.stats.totalSessions} sessions completed</div>
               </div>
             </div>
           </div>
           <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={isEditing ? handleSave : () => setIsEditing(true)}
+            disabled={saving}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
-            {isEditing ? "Save Changes" : "Edit Profile"}
+            {saving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Edit Profile')}
           </button>
         </div>
 
+        {isEditing && (
+          <div className="mt-6 flex space-x-4">
+            <button
+              onClick={handleCancel}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
         <div className="mt-6">
-          <p className="text-gray-700">{user.bio}</p>
+          {isEditing ? (
+            <textarea
+              value={formData.bio}
+              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+              placeholder="Tell others about yourself..."
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              rows={3}
+            />
+          ) : (
+            <p className="text-gray-700">{user.bio || 'No bio yet'}</p>
+          )}
         </div>
+
+        {error && (
+          <div className="mt-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -107,7 +257,7 @@ function Profile() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Coin Balance</p>
-              <p className="text-2xl font-bold text-yellow-600">{user.coins}</p>
+              <p className="text-2xl font-bold text-yellow-600">{user.wallet.balance}</p>
             </div>
             <span className="text-2xl">💰</span>
           </div>
@@ -134,7 +284,7 @@ function Profile() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Average Rating</p>
-              <p className="text-2xl font-bold text-purple-600">{user.rating}</p>
+              <p className="text-2xl font-bold text-purple-600">{user.stats.averageRating.toFixed(1)}</p>
             </div>
             <span className="text-2xl">⭐</span>
           </div>
@@ -149,8 +299,7 @@ function Profile() {
               { id: "overview", label: "Overview" },
               { id: "teaching", label: "Teaching Skills" },
               { id: "learning", label: "Learning Goals" },
-              { id: "availability", label: "Availability" },
-              { id: "reviews", label: "Reviews" }
+              { id: "availability", label: "Availability" }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -173,13 +322,13 @@ function Profile() {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">About Me</h3>
-                <p className="text-gray-700">{user.bio}</p>
+                <p className="text-gray-700">{user.bio || 'No bio yet'}</p>
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{user.totalSessions}</div>
+                    <div className="text-2xl font-bold text-blue-600">{user.stats.totalSessions}</div>
                     <div className="text-sm text-gray-600">Total Sessions</div>
                   </div>
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
@@ -191,7 +340,7 @@ function Profile() {
                     <div className="text-sm text-gray-600">Skills I'm Learning</div>
                   </div>
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-yellow-600">{user.rating}</div>
+                    <div className="text-2xl font-bold text-yellow-600">{user.stats.averageRating.toFixed(1)}</div>
                     <div className="text-sm text-gray-600">Average Rating</div>
                   </div>
                 </div>
@@ -204,26 +353,66 @@ function Profile() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Skills I Teach</h3>
-                <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                  Add New Skill
-                </button>
+                {isEditing && (
+                  <button
+                    onClick={addTeachingSkill}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Add New Skill
+                  </button>
+                )}
               </div>
               <div className="space-y-4">
-                {user.teachingSkills.map((skill, index) => (
+                {formData.teachingSkills.map((skill, index) => (
                   <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{skill.skill}</h4>
-                      <p className="text-sm text-gray-600">Level: {skill.level}</p>
+                    <div className="flex-1">
+                      {isEditing ? (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <input
+                            type="text"
+                            value={skill.skill}
+                            onChange={(e) => updateTeachingSkill(index, 'skill', e.target.value)}
+                            placeholder="Skill name"
+                            className="border border-gray-300 rounded px-2 py-1"
+                          />
+                          <select
+                            value={skill.level}
+                            onChange={(e) => updateTeachingSkill(index, 'level', e.target.value)}
+                            className="border border-gray-300 rounded px-2 py-1"
+                          >
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                            <option value="expert">Expert</option>
+                          </select>
+                          <input
+                            type="number"
+                            value={skill.hourlyRate}
+                            onChange={(e) => updateTeachingSkill(index, 'hourlyRate', parseInt(e.target.value))}
+                            placeholder="Hourly rate"
+                            className="border border-gray-300 rounded px-2 py-1"
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <h4 className="font-medium text-gray-900">{skill.skill}</h4>
+                          <p className="text-sm text-gray-600">Level: {skill.level} • ${skill.hourlyRate}/hour</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-center space-x-1 mb-1">
-                        <span className="text-yellow-400">⭐</span>
-                        <span className="text-sm font-medium">{skill.rating}</span>
-                      </div>
-                      <p className="text-sm text-gray-600">{skill.sessions} sessions taught</p>
-                    </div>
+                    {isEditing && (
+                      <button
+                        onClick={() => removeTeachingSkill(index)}
+                        className="text-red-600 hover:text-red-800 ml-4"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 ))}
+                {formData.teachingSkills.length === 0 && !isEditing && (
+                  <p className="text-gray-500 text-center py-8">No teaching skills added yet</p>
+                )}
               </div>
             </div>
           )}
@@ -233,26 +422,69 @@ function Profile() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Skills I'm Learning</h3>
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                  Add Learning Goal
-                </button>
+                {isEditing && (
+                  <button
+                    onClick={addLearningSkill}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Add Learning Goal
+                  </button>
+                )}
               </div>
               <div className="space-y-4">
-                {user.learningSkills.map((skill, index) => (
+                {formData.learningSkills.map((skill, index) => (
                   <div key={index} className="p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-gray-900">{skill.skill}</h4>
-                      <span className="text-sm text-gray-600">{skill.level}</span>
+                      {isEditing ? (
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <input
+                            type="text"
+                            value={skill.skill}
+                            onChange={(e) => updateLearningSkill(index, 'skill', e.target.value)}
+                            placeholder="Skill name"
+                            className="border border-gray-300 rounded px-2 py-1"
+                          />
+                          <select
+                            value={skill.level}
+                            onChange={(e) => updateLearningSkill(index, 'level', e.target.value)}
+                            className="border border-gray-300 rounded px-2 py-1"
+                          >
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <>
+                          <h4 className="font-medium text-gray-900">{skill.skill}</h4>
+                          <span className="text-sm text-gray-600">{skill.level}</span>
+                        </>
+                      )}
+                      {isEditing && (
+                        <button
+                          onClick={() => removeLearningSkill(index)}
+                          className="text-red-600 hover:text-red-800 ml-4"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${skill.progress}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{skill.progress}% progress</p>
+                    {!isEditing && (
+                      <>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{ width: `${skill.progress}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{skill.progress}% progress</p>
+                      </>
+                    )}
                   </div>
                 ))}
+                {formData.learningSkills.length === 0 && !isEditing && (
+                  <p className="text-gray-500 text-center py-8">No learning goals added yet</p>
+                )}
               </div>
             </div>
           )}
@@ -262,53 +494,43 @@ function Profile() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-6">My Availability</h3>
               <div className="space-y-3">
-                {Object.entries(user.availability).map(([day, schedule]) => (
+                {Object.entries(formData.availability).map(([day, schedule]) => (
                   <div key={day} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <span className="font-medium text-gray-900 capitalize w-20">{day}</span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        schedule.available 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {schedule.available ? 'Available' : 'Unavailable'}
-                      </span>
+                      {isEditing ? (
+                        <input
+                          type="checkbox"
+                          checked={schedule.available}
+                          onChange={(e) => updateAvailability(day, 'available', e.target.checked)}
+                          className="rounded"
+                        />
+                      ) : (
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          schedule.available
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {schedule.available ? 'Available' : 'Unavailable'}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-gray-600">
-                      {schedule.available ? schedule.hours : 'Not available'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Reviews Tab */}
-          {activeTab === "reviews" && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Student Reviews</h3>
-              <div className="space-y-4">
-                {reviews.map((review) => (
-                  <div key={review.id} className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-gray-900">{review.student}</span>
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                            {review.skill}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-1 mt-1">
-                          {[...Array(5)].map((_, i) => (
-                            <span key={i} className={`text-sm ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`}>
-                              ⭐
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <span className="text-sm text-gray-500">{review.date}</span>
+                    <div className="flex-1 max-w-xs">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={schedule.hours}
+                          onChange={(e) => updateAvailability(day, 'hours', e.target.value)}
+                          placeholder="e.g., 9:00 AM - 5:00 PM"
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                          disabled={!schedule.available}
+                        />
+                      ) : (
+                        <span className="text-gray-600 text-sm">
+                          {schedule.available ? schedule.hours : 'Not available'}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-gray-700">{review.comment}</p>
                   </div>
                 ))}
               </div>
