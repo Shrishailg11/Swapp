@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authService } from '../services/auth';
 
 interface User {
   _id: string;
@@ -23,37 +24,8 @@ interface AuthContextType {
   register: (name: string, email: string, password: string, role?: string) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
-  updateProfile: (profileData: any) => Promise<void>; 
+  updateProfile: (profileData: any) => Promise<void>;
 }
-
-import { authService } from '../services/auth'; // Add this import at the top
-
-// Add this function inside the AuthProvider component, after updateUser:
-const updateProfile = async (profileData: any) => {
-  try {
-    const response = await authService.updateProfile(profileData);
-    if (response.success && user) {
-      const updatedUser = { ...user, ...response.data.user };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-    }
-    return response;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// Add updateProfile to the value object:
-const value: AuthContextType = {
-  user,
-  token,
-  loading,
-  login,
-  register,
-  logout,
-  updateUser,
-  updateProfile, // Add this line
-};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -168,6 +140,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateProfile = async (profileData: any) => {
+    try {
+      const response = await authService.updateProfile(profileData);
+      if (response.success && user) {
+        const updatedUser = { ...user, ...response.data.user };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -176,6 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     updateUser,
+    updateProfile,
   };
 
   return (

@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { userService, UserProfile } from "../services/user";
 
 function Profile() {
-  const { user: currentUser, updateProfile } = useAuth();
+  const { updateProfile } = useAuth();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
