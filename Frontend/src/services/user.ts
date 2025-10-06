@@ -103,4 +103,14 @@ export const userService = {
     const response = await api.put('/users/profile', profileData);
     return response.data;
   },
+  getDashboard: async () => {
+    const response = await api.get('/users/dashboard');
+    return response.data;
+  },
+
+  // Get user wallet data
+  getWallet: async () => {
+    const response = await api.get('/users/wallet');
+    return response.data;
+  },
 };
