@@ -141,4 +141,27 @@ router.put('/profile', protect, async (req, res) => {
   }
 });
 
+// @desc    Get current user profile
+// @route   GET /api/users/profile
+// @access  Private
+router.get('/profile', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: user.getPublicProfile()
+      }
+    });
+
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching profile'
+    });
+  }
+});
+
 export default router;
