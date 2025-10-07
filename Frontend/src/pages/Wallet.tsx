@@ -1,107 +1,88 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { userService } from "../services/user";
+
+interface WalletData {
+  walletData: {
+    balance: number;
+    totalEarned: number;
+    totalSpent: number;
+    pendingEarnings: number;
+  };
+  transactions: Array<{
+    id: string;
+    type: string;
+    amount: number;
+    description: string;
+    date: string;
+    time: string;
+    status: string;
+  }>;
+  earningsSummary: {
+    thisMonth: number;
+    thisWeek: number;
+    averagePerSession: number;
+  };
+  earningsBySkill: Array<{
+    skill: string;
+    sessions: number;
+    earnings: number;
+    rate: number;
+  }>;
+}
 
 function Wallet() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [walletData, setWalletData] = useState<WalletData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock wallet data
-  const walletData = {
-    balance: 250,
-    totalEarned: 480,
-    totalSpent: 230,
-    pendingEarnings: 75
+  useEffect(() => {
+    loadWalletData();
+  }, []);
+
+  const loadWalletData = async () => {
+    try {
+      setLoading(true);
+      const response = await userService.getWallet();
+      setWalletData(response.data);
+      setError('');
+    } catch (error: any) {
+      setError(error.message || 'Failed to load wallet data');
+      console.error('Wallet error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const transactions = [
-    {
-      id: 1,
-      type: "earned",
-      amount: 25,
-      description: "React Development session with Mike Johnson",
-      date: "Dec 26, 2024",
-      time: "2:30 PM",
-      status: "completed"
-    },
-    {
-      id: 2,
-      type: "spent",
-      amount: -20,
-      description: "Guitar lesson with Alex Rivera",
-      date: "Dec 25, 2024",
-      time: "4:00 PM",
-      status: "completed"
-    },
-    {
-      id: 3,
-      type: "earned",
-      amount: 30,
-      description: "JavaScript tutoring with Sarah Chen",
-      date: "Dec 24, 2024",
-      time: "10:00 AM",
-      status: "completed"
-    },
-    {
-      id: 4,
-      type: "spent",
-      amount: -18,
-      description: "Spanish conversation with Maria Santos",
-      date: "Dec 23, 2024",
-      time: "3:00 PM",
-      status: "completed"
-    },
-    {
-      id: 5,
-      type: "purchased",
-      amount: 100,
-      description: "Coin purchase - Starter Pack",
-      date: "Dec 22, 2024",
-      time: "9:15 AM",
-      status: "completed"
-    },
-    {
-      id: 6,
-      type: "earned",
-      amount: 25,
-      description: "Node.js session with Emma Davis",
-      date: "Dec 21, 2024",
-      time: "1:00 PM",
-      status: "pending"
-    }
-  ];
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="animate-pulse">
+          <div className="h-32 bg-gray-200 rounded-xl mb-8"></div>
+          <div className="h-96 bg-gray-200 rounded-xl"></div>
+        </div>
+      </div>
+    );
+  }
 
-  const coinPackages = [
-    {
-      id: 1,
-      name: "Starter Pack",
-      coins: 100,
-      price: 9.99,
-      bonus: 0,
-      popular: false
-    },
-    {
-      id: 2,
-      name: "Learning Pack",
-      coins: 250,
-      price: 19.99,
-      bonus: 25,
-      popular: true
-    },
-    {
-      id: 3,
-      name: "Pro Pack",
-      coins: 500,
-      price: 34.99,
-      bonus: 75,
-      popular: false
-    },
-    {
-      id: 4,
-      name: "Master Pack",
-      coins: 1000,
-      price: 59.99,
-      bonus: 200,
-      popular: false
-    }
-  ];
+  if (error || !walletData) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Failed to load wallet</p>
+          <p className="text-sm text-gray-400">{error}</p>
+          <button
+            onClick={loadWalletData}
+            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const { transactions } = walletData;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -117,7 +98,7 @@ function Wallet() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm">Current Balance</p>
-              <p className="text-3xl font-bold">{walletData.balance}</p>
+              <p className="text-3xl font-bold">{walletData.walletData.balance}</p>
               <p className="text-yellow-100 text-sm">coins</p>
             </div>
             <span className="text-4xl">💰</span>
@@ -128,7 +109,7 @@ function Wallet() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Earned</p>
-              <p className="text-2xl font-bold text-green-600">{walletData.totalEarned}</p>
+              <p className="text-2xl font-bold text-green-600">{walletData.walletData.totalEarned}</p>
               <p className="text-xs text-gray-500">coins</p>
             </div>
             <span className="text-2xl">📈</span>
@@ -139,7 +120,7 @@ function Wallet() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Spent</p>
-              <p className="text-2xl font-bold text-red-600">{walletData.totalSpent}</p>
+              <p className="text-2xl font-bold text-red-600">{walletData.walletData.totalSpent}</p>
               <p className="text-xs text-gray-500">coins</p>
             </div>
             <span className="text-2xl">📉</span>
@@ -150,7 +131,7 @@ function Wallet() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Pending Earnings</p>
-              <p className="text-2xl font-bold text-blue-600">{walletData.pendingEarnings}</p>
+              <p className="text-2xl font-bold text-blue-600">{walletData.walletData.pendingEarnings}</p>
               <p className="text-xs text-gray-500">coins</p>
             </div>
             <span className="text-2xl">⏳</span>
@@ -257,7 +238,12 @@ function Wallet() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {coinPackages.map((pkg) => (
+                {[
+                  { id: 1, name: "Starter Pack", coins: 100, price: 9.99, bonus: 0, popular: false },
+                  { id: 2, name: "Learning Pack", coins: 250, price: 19.99, bonus: 25, popular: true },
+                  { id: 3, name: "Pro Pack", coins: 500, price: 34.99, bonus: 75, popular: false },
+                  { id: 4, name: "Master Pack", coins: 1000, price: 59.99, bonus: 200, popular: false }
+                ].map((pkg) => (
                   <div key={pkg.id} className={`relative bg-white border-2 rounded-xl p-6 ${
                     pkg.popular ? 'border-blue-500 shadow-lg' : 'border-gray-200'
                   }`}>
@@ -324,7 +310,7 @@ function Wallet() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-green-600">This Month</p>
-                      <p className="text-2xl font-bold text-green-700">125 coins</p>
+                      <p className="text-2xl font-bold text-green-700">{walletData.earningsSummary.thisMonth} coins</p>
                     </div>
                     <span className="text-2xl">📅</span>
                   </div>
@@ -333,7 +319,7 @@ function Wallet() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-blue-600">This Week</p>
-                      <p className="text-2xl font-bold text-blue-700">55 coins</p>
+                      <p className="text-2xl font-bold text-blue-700">{walletData.earningsSummary.thisWeek} coins</p>
                     </div>
                     <span className="text-2xl">📊</span>
                   </div>
@@ -342,7 +328,7 @@ function Wallet() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-purple-600">Average per Session</p>
-                      <p className="text-2xl font-bold text-purple-700">25 coins</p>
+                      <p className="text-2xl font-bold text-purple-700">{walletData.earningsSummary.averagePerSession} coins</p>
                     </div>
                     <span className="text-2xl">💎</span>
                   </div>
@@ -353,11 +339,7 @@ function Wallet() {
               <div className="mb-8">
                 <h4 className="font-medium text-gray-900 mb-4">Earnings by Skill</h4>
                 <div className="space-y-3">
-                  {[
-                    { skill: "JavaScript", sessions: 8, earnings: 200, rate: 25 },
-                    { skill: "React", sessions: 6, earnings: 150, rate: 25 },
-                    { skill: "Node.js", sessions: 4, earnings: 100, rate: 25 }
-                  ].map((item, index) => (
+                  {walletData.earningsBySkill.map((item, index) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div>
                         <h5 className="font-medium text-gray-900">{item.skill}</h5>
