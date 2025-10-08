@@ -111,77 +111,6 @@ router.get('/teachers', async (req, res) => {
   }
 });
 
-// @desc    Get single user profile
-// @route   GET /api/users/:id
-// @access  Public
-router.get('/:id', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        user: user.getPublicProfile()
-      }
-    });
-
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching user'
-    });
-  }
-});
-
-// @desc    Update user profile
-// @route   PUT /api/users/profile
-// @access  Private
-router.put('/profile', protect, async (req, res) => {
-  try {
-    const allowedFields = [
-      'name', 'bio', 'location', 'avatar', 'role',
-      'teachingSkills', 'learningSkills', 'availability'
-    ];
-
-    const updates = {};
-
-    // Only update allowed fields
-    Object.keys(req.body).forEach(key => {
-      if (allowedFields.includes(key)) {
-        updates[key] = req.body[key];
-      }
-    });
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      updates,
-      { new: true, runValidators: true }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: {
-        user: user.getPublicProfile()
-      }
-    });
-
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating profile'
-    });
-  }
-});
 
 // @desc    Get user dashboard data
 // @route   GET /api/users/dashboard
@@ -355,6 +284,80 @@ router.get('/wallet', protect, async (req, res) => {
       success: false,
       message: 'Server error fetching wallet data',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+
+// @desc    Get single user profile
+// @route   GET /api/users/:id
+// @access  Public
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: user.getPublicProfile()
+      }
+    });
+
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching user'
+    });
+  }
+});
+
+// @desc    Update user profile
+// @route   PUT /api/users/profile
+// @access  Private
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const allowedFields = [
+      'name', 'bio', 'location', 'avatar', 'role',
+      'teachingSkills', 'learningSkills', 'availability'
+    ];
+
+    const updates = {};
+
+    // Only update allowed fields
+    Object.keys(req.body).forEach(key => {
+      if (allowedFields.includes(key)) {
+        updates[key] = req.body[key];
+      }
+    });
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: user.getPublicProfile()
+      }
+    });
+
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating profile'
     });
   }
 });
