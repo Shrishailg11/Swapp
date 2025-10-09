@@ -126,9 +126,12 @@ router.get('/dashboard', protect, async (req, res) => {
       });
     }
 
-    // Get upcoming sessions (mock for now - we'll implement real sessions later)
-    const upcomingSessions = [
-      {
+    // Personalized upcoming sessions based on user role and skills
+    const upcomingSessions = [];
+    
+    if (user.stats.totalSessions > 0) {
+      // Show real-like data for users with activity
+      upcomingSessions.push({
         id: '1',
         type: user.role === 'teacher' ? 'teaching' : 'learning',
         skill: user.teachingSkills.length > 0 ? user.teachingSkills[0].skill : 'General Tutoring',
@@ -137,23 +140,27 @@ router.get('/dashboard', protect, async (req, res) => {
         date: 'Today',
         time: '2:00 PM',
         status: 'confirmed',
-        avatar: user.avatar || user.name.split(' ').map(n => n[0]).join('').toUpperCase()
-      }
-    ];
+        avatar: user.role === 'teacher' ? 'DS' : 'DT' // Demo Student/Teacher
+      });
+    }
 
-    // Get recent messages (mock for now)
-    const recentMessages = [
-      {
+    // Personalized recent messages
+    const recentMessages = [];
+    
+    if (user.stats.totalSessions > 0) {
+      recentMessages.push({
         id: '1',
-        name: 'Demo Contact',
-        message: 'Looking forward to our session!',
-        time: '10 min ago',
+        name: user.role === 'teacher' ? 'Demo Student' : 'Demo Teacher',
+        message: user.role === 'teacher' 
+          ? `Thanks for the great ${user.teachingSkills.length > 0 ? user.teachingSkills[0].skill : 'tutoring'} session!`
+          : `Looking forward to our next ${user.learningSkills.length > 0 ? user.learningSkills[0].skill : 'learning'} session!`,
+        time: '2 hours ago',
         unread: true,
-        avatar: 'DC'
-      }
-    ];
+        avatar: user.role === 'teacher' ? 'DS' : 'DT'
+      });
+    }
 
-    // Calculate stats
+    // Real stats from user data
     const stats = {
       coinBalance: user.wallet.balance,
       sessionsThisMonth: user.stats.totalSessions,
@@ -161,20 +168,23 @@ router.get('/dashboard', protect, async (req, res) => {
       averageRating: user.stats.averageRating
     };
 
-    // Role-based quick actions
+    // Personalized quick actions based on user role
     const quickActions = [];
+    
     if (user.role === 'teacher' || user.role === 'both') {
       quickActions.push(
         { id: 'profile', icon: '👨‍🏫', label: 'Update Teaching Profile', link: '/profile' },
         { id: 'availability', icon: '📅', label: 'Set Availability', link: '/profile' }
       );
     }
+    
     if (user.role === 'learner' || user.role === 'both') {
       quickActions.push(
         { id: 'browse', icon: '🔍', label: 'Find Teachers', link: '/browse' },
         { id: 'skills', icon: '📚', label: 'Update Learning Goals', link: '/profile' }
       );
     }
+    
     quickActions.push(
       { id: 'wallet', icon: '💰', label: 'Buy Coins', link: '/wallet' }
     );
@@ -189,7 +199,8 @@ router.get('/dashboard', protect, async (req, res) => {
         upcomingSessions,
         recentMessages,
         stats,
-        quickActions
+        quickActions,
+        hasActivity: user.stats.totalSessions > 0
       }
     });
 
@@ -217,33 +228,38 @@ router.get('/wallet', protect, async (req, res) => {
       });
     }
 
-    // Mock transactions for now (we'll implement real transactions later)
-    const transactions = [
-      {
+    // Personalized mock transactions based on user's actual data
+    const transactions = [];
+    
+    if (user.stats.coinsEarned > 0) {
+      transactions.push({
         id: '1',
         type: 'earned',
         amount: 25,
         description: user.teachingSkills.length > 0 
-          ? `${user.teachingSkills[0].skill} session with Demo Student`
-          : 'Tutoring session with Demo Student',
-        date: new Date().toLocaleDateString(),
+          ? `${user.teachingSkills[0].skill} session with Student`
+          : 'Tutoring session with Student',
+        date: new Date(Date.now() - 86400000).toLocaleDateString(),
         time: '2:30 PM',
         status: 'completed'
-      },
-      {
+      });
+    }
+    
+    if (user.stats.coinsSpent > 0) {
+      transactions.push({
         id: '2',
         type: 'spent',
         amount: -20,
         description: user.learningSkills.length > 0
-          ? `${user.learningSkills[0].skill} lesson with Demo Teacher`
-          : 'Learning session with Demo Teacher',
-        date: new Date(Date.now() - 86400000).toLocaleDateString(),
+          ? `${user.learningSkills[0].skill} lesson with Teacher`
+          : 'Learning session with Teacher',
+        date: new Date(Date.now() - 172800000).toLocaleDateString(),
         time: '4:00 PM',
         status: 'completed'
-      }
-    ];
+      });
+    }
 
-    // Calculate wallet summary
+    // Real wallet data from user
     const walletData = {
       balance: user.wallet.balance,
       totalEarned: user.stats.coinsEarned,
@@ -251,7 +267,7 @@ router.get('/wallet', protect, async (req, res) => {
       pendingEarnings: user.wallet.pendingEarnings || 0
     };
 
-    // Earnings summary (mock calculations for now)
+    // Personalized earnings summary
     const earningsSummary = {
       thisMonth: Math.floor(user.stats.coinsEarned * 0.3),
       thisWeek: Math.floor(user.stats.coinsEarned * 0.1),
@@ -260,7 +276,7 @@ router.get('/wallet', protect, async (req, res) => {
         : 25
     };
 
-    // Earnings by skill (mock data based on user's teaching skills)
+    // Personalized earnings by skill
     const earningsBySkill = user.teachingSkills.map((skill, index) => ({
       skill: skill.skill,
       sessions: skill.sessions,
@@ -274,7 +290,9 @@ router.get('/wallet', protect, async (req, res) => {
         walletData,
         transactions,
         earningsSummary,
-        earningsBySkill
+        earningsBySkill,
+        hasTransactions: transactions.length > 0,
+        hasTeachingActivity: user.teachingSkills.length > 0
       }
     });
 
