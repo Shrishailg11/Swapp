@@ -150,7 +150,7 @@ const userSchema = new mongoose.Schema({
 
   // Wallet
   wallet: {
-    balance: { type: Number, default: 0 },
+    balance: { type: Number, default: 125 },
     pendingEarnings: { type: Number, default: 0 }
   }
 }, {
