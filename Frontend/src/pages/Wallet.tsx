@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { userService } from "../services/user";
+import { Link } from "react-router-dom"; 
+import { useAuth } from "../context/AuthContext"; 
 
 interface WalletData {
   walletData: {
@@ -28,9 +30,12 @@ interface WalletData {
     earnings: number;
     rate: number;
   }>;
+  hasTransactions: boolean; // Add this field
+  hasTeachingActivity: boolean; // Add this field
 }
 
 function Wallet() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,7 +94,12 @@ function Wallet() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">My Wallet</h1>
-        <p className="text-gray-600">Manage your coins, track earnings, and purchase new coin packages</p>
+        <p className="text-gray-600">
+          {walletData.hasTransactions 
+            ? "Manage your coins, track earnings, and purchase new coin packages"
+            : "Start earning and spending coins on PeerLearn"
+          }
+        </p>
       </div>
 
       {/* Wallet Overview */}
@@ -169,63 +179,92 @@ function Wallet() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Recent Transactions</h3>
-                <div className="flex space-x-2">
-                  <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option>All Transactions</option>
-                    <option>Earned</option>
-                    <option>Spent</option>
-                    <option>Purchased</option>
-                  </select>
-                  <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option>Last 30 days</option>
-                    <option>Last 7 days</option>
-                    <option>Last 3 months</option>
-                    <option>All time</option>
-                  </select>
-                </div>
+                {!walletData.hasTransactions && (
+                  <div className="flex space-x-2">
+                    <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm opacity-50 cursor-not-allowed">
+                      <option>All Transactions</option>
+                    </select>
+                    <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm opacity-50 cursor-not-allowed">
+                      <option>Last 30 days</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-3">
-                {transactions.map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        transaction.type === 'earned' ? 'bg-green-100' :
-                        transaction.type === 'spent' ? 'bg-red-100' : 'bg-blue-100'
-                      }`}>
-                        <span className="text-lg">
-                          {transaction.type === 'earned' ? '💰' :
-                           transaction.type === 'spent' ? '📚' : '🛒'}
+              {walletData.hasTransactions ? (
+                <div className="space-y-3">
+                  {transactions.map((transaction) => (
+                    <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          transaction.type === 'earned' ? 'bg-green-100' :
+                          transaction.type === 'spent' ? 'bg-red-100' : 'bg-blue-100'
+                        }`}>
+                          <span className="text-lg">
+                            {transaction.type === 'earned' ? '💰' :
+                             transaction.type === 'spent' ? '📚' : '🛒'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{transaction.description}</p>
+                          <p className="text-sm text-gray-600">{transaction.date} at {transaction.time}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-lg font-bold ${
+                          transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {transaction.amount > 0 ? '+' : ''}{transaction.amount} coins
+                        </p>
+                        <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                          transaction.status === 'completed' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {transaction.status}
                         </span>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{transaction.description}</p>
-                        <p className="text-sm text-gray-600">{transaction.date} at {transaction.time}</p>
-                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`text-lg font-bold ${
-                        transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {transaction.amount > 0 ? '+' : ''}{transaction.amount} coins
-                      </p>
-                      <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                        transaction.status === 'completed' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {transaction.status}
-                      </span>
-                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">💰</span>
                   </div>
-                ))}
-              </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions yet</h3>
+                  <p className="text-gray-600 mb-4">
+                    {user?.role === 'teacher'
+                      ? "Start teaching to earn your first coins"
+                      : "Book your first session to start spending coins"
+                    }
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    {user?.role === 'teacher' && (
+                      <Link 
+                        to="/profile" 
+                        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Update Teaching Profile
+                      </Link>
+                    )}
+                    <Link 
+                      to="/browse" 
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      {user?.role === 'teacher' ? 'Find Students' : 'Find Teachers'}
+                    </Link>
+                  </div>
+                </div>
+              )}
 
-              <div className="text-center mt-6">
-                <button className="text-blue-600 hover:text-blue-700 font-medium">
-                  Load More Transactions
-                </button>
-              </div>
+              {walletData.hasTransactions && (
+                <div className="text-center mt-6">
+                  <button className="text-blue-600 hover:text-blue-700 font-medium">
+                    Load More Transactions
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -299,77 +338,105 @@ function Wallet() {
           {/* Earnings Tab */}
           {activeTab === "earnings" && (
             <div>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Teaching Earnings</h3>
-                <p className="text-gray-600">Track your income from teaching sessions</p>
-              </div>
+              {walletData.hasTeachingActivity ? (
+                <>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Teaching Earnings</h3>
+                    <p className="text-gray-600">Track your income from teaching sessions</p>
+                  </div>
 
-              {/* Earnings Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-green-600">This Month</p>
-                      <p className="text-2xl font-bold text-green-700">{walletData.earningsSummary.thisMonth} coins</p>
+                  {/* Earnings Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-green-600">This Month</p>
+                          <p className="text-2xl font-bold text-green-700">{walletData.earningsSummary.thisMonth} coins</p>
+                        </div>
+                        <span className="text-2xl">📅</span>
+                      </div>
                     </div>
-                    <span className="text-2xl">📅</span>
-                  </div>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-blue-600">This Week</p>
-                      <p className="text-2xl font-bold text-blue-700">{walletData.earningsSummary.thisWeek} coins</p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-blue-600">This Week</p>
+                          <p className="text-2xl font-bold text-blue-700">{walletData.earningsSummary.thisWeek} coins</p>
+                        </div>
+                        <span className="text-2xl">📊</span>
+                      </div>
                     </div>
-                    <span className="text-2xl">📊</span>
-                  </div>
-                </div>
-                <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-purple-600">Average per Session</p>
-                      <p className="text-2xl font-bold text-purple-700">{walletData.earningsSummary.averagePerSession} coins</p>
+                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-purple-600">Average per Session</p>
+                          <p className="text-2xl font-bold text-purple-700">{walletData.earningsSummary.averagePerSession} coins</p>
+                        </div>
+                        <span className="text-2xl">💎</span>
+                      </div>
                     </div>
-                    <span className="text-2xl">💎</span>
                   </div>
-                </div>
-              </div>
 
-              {/* Earnings by Skill */}
-              <div className="mb-8">
-                <h4 className="font-medium text-gray-900 mb-4">Earnings by Skill</h4>
-                <div className="space-y-3">
-                  {walletData.earningsBySkill.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  {/* Earnings by Skill */}
+                  <div className="mb-8">
+                    <h4 className="font-medium text-gray-900 mb-4">Earnings by Skill</h4>
+                    <div className="space-y-3">
+                      {walletData.earningsBySkill.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div>
+                            <h5 className="font-medium text-gray-900">{item.skill}</h5>
+                            <p className="text-sm text-gray-600">{item.sessions} sessions taught</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-green-600">{item.earnings} coins earned</p>
+                            <p className="text-sm text-gray-600">{item.rate} coins/hour</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Payout Information */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-2xl">ℹ️</span>
                       <div>
-                        <h5 className="font-medium text-gray-900">{item.skill}</h5>
-                        <p className="text-sm text-gray-600">{item.sessions} sessions taught</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-green-600">{item.earnings} coins earned</p>
-                        <p className="text-sm text-gray-600">{item.rate} coins/hour</p>
+                        <h4 className="font-medium text-yellow-900 mb-2">Payout Information</h4>
+                        <p className="text-yellow-700 text-sm mb-3">
+                          Earnings are automatically added to your coin balance after each completed session. 
+                          You can use earned coins immediately or convert them to cash.
+                        </p>
+                        <button className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors">
+                          Request Cash Payout
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Payout Information */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-                <div className="flex items-start space-x-3">
-                  <span className="text-2xl">ℹ️</span>
-                  <div>
-                    <h4 className="font-medium text-yellow-900 mb-2">Payout Information</h4>
-                    <p className="text-yellow-700 text-sm mb-3">
-                      Earnings are automatically added to your coin balance after each completed session. 
-                      You can use earned coins immediately or convert them to cash.
-                    </p>
-                    <button className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors">
-                      Request Cash Payout
-                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">📈</span>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No teaching earnings yet</h3>
+                  <p className="text-gray-600 mb-4">
+                    Start teaching to earn coins and track your earnings here
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Link 
+                      to="/profile" 
+                      className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Add Teaching Skills
+                    </Link>
+                    <Link 
+                      to="/profile" 
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Set Availability
+                    </Link>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
