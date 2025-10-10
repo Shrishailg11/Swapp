@@ -23,15 +23,25 @@ router.post('/', protect, async (req, res) => {
     
     // Check if teacher teaches this skill
     const skillData = teacher.teachingSkills.find(s => s.skill === skill);
+
     if (!skillData) {
       return res.status(400).json({
         success: false,
         message: 'Teacher does not offer this skill'
       });
     }
+    const sessionCost = skillData.hourlyRate * (duration / 60);
+    
+    if (req.user.wallet.balance < sessionCost) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient coins. You need ${sessionCost} coins but only have ${req.user.wallet.balance}.`
+      });
+    }
     
     const startTime = new Date(scheduledDate);
     const sessionDuration = duration || 60;
+    
     
     // Check availability
     const isAvailable = await Session.checkAvailability(teacherId, startTime, sessionDuration);
@@ -53,6 +63,8 @@ router.post('/', protect, async (req, res) => {
       notes
     });
     
+    console.log('✅ Session created:', session._id);
+    
     // Populate teacher data
     await session.populate('teacher', 'name email avatar');
     
@@ -64,7 +76,7 @@ router.post('/', protect, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Create session error:', error);
+    console.error('❌ Session creation error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error creating session',
@@ -124,74 +136,85 @@ router.get('/', protect, async (req, res) => {
 // @route   PUT /api/sessions/:id/status
 // @access  Private
 router.put('/:id/status', protect, async (req, res) => {
-  try {
-    const { status, cancellationReason } = req.body;
-    
-    const session = await Session.findById(req.params.id);
-    
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Session not found'
-      });
-    }
-    
-    // Check if user is authorized (student or teacher of this session)
-    if (session.student.toString() !== req.user._id.toString() && 
-        session.teacher.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this session'
-      });
-    }
-    
-    // Update session
-    session.status = status;
-    if (status === 'cancelled') {
-      session.cancellationReason = cancellationReason;
-      session.cancelledBy = req.user._id;
-    } else if (status === 'completed') {
-      session.completedAt = new Date();
+    try {
+      const { status, cancellationReason } = req.body;
       
-      // Update user stats and wallet
-      if (session.status !== 'completed') {
+      const session = await Session.findById(req.params.id);
+      
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found'
+        });
+      }
+      
+      // Check if user is authorized
+      if (session.student.toString() !== req.user._id.toString() && 
+          session.teacher.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to update this session'
+        });
+      }
+      
+      // Handle coin transactions based on status change
+      if (status === 'completed' && session.status !== 'completed') {
+        // Transfer coins: Student → Teacher
         const student = await User.findById(session.student);
         const teacher = await User.findById(session.teacher);
         
         if (student && teacher) {
-          // Deduct coins from student
-          student.wallet.balance -= session.price;
-          student.stats.coinsSpent += session.price;
-          student.stats.totalSessions += 1;
+          if (student.wallet.balance < session.price) {
+            return res.status(400).json({
+              success: false,
+              message: 'Student has insufficient coins for this session'
+            });
+          }
           
-          // Add coins to teacher
+          // Perform the transfer
+          student.wallet.balance -= session.price;
           teacher.wallet.balance += session.price;
+          
+          // Update stats
+          student.stats.coinsSpent += session.price;
           teacher.stats.coinsEarned += session.price;
-          teacher.stats.totalSessions += 1;
           
           await student.save();
           await teacher.save();
+          
+          console.log(`💰 Coin transfer: ${session.price} coins from student to teacher`);
         }
+      } else if (status === 'cancelled' && req.user._id.toString() === session.student.toString()) {
+        // Optional: Refund coins to student on cancellation
+        // This depends on your cancellation policy
+        console.log('📝 Session cancelled - consider refund policy');
       }
+      
+      session.status = status;
+      if (status === 'cancelled') {
+        session.cancellationReason = cancellationReason;
+        session.cancelledBy = req.user._id;
+      } else if (status === 'completed') {
+        session.completedAt = new Date();
+      }
+      
+      await session.save();
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          session
+        }
+      });
+      
+    } catch (error) {
+      console.error('Update session status error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error updating session'
+      });
     }
-    
-    await session.save();
-    
-    res.status(200).json({
-      success: true,
-      data: {
-        session
-      }
-    });
-    
-  } catch (error) {
-    console.error('Update session status error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating session'
-    });
-  }
-});
+  });
 
 // @desc    Get teacher availability for a specific date
 // @route   GET /api/sessions/availability/:teacherId
