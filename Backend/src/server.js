@@ -14,6 +14,7 @@ import connectDB from './config/database.js';
 // Import routes
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
+import sessionRoutes from './routes/sessions.js';
 
 // Load environment variables
 dotenv.config();
@@ -54,6 +55,7 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/sessions',sessionRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
