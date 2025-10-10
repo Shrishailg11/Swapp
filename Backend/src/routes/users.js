@@ -1,6 +1,7 @@
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import User from '../models/User.js';
+import Session from '../models/Session.js';
 
 const router = express.Router();
 
@@ -126,37 +127,71 @@ router.get('/dashboard', protect, async (req, res) => {
       });
     }
 
-    // Personalized upcoming sessions based on user role and skills
-    const upcomingSessions = [];
     
-    if (user.stats.totalSessions > 0) {
-      // Show real-like data for users with activity
-      upcomingSessions.push({
-        id: '1',
-        type: user.role === 'teacher' ? 'teaching' : 'learning',
-        skill: user.teachingSkills.length > 0 ? user.teachingSkills[0].skill : 'General Tutoring',
-        teacher: user.role === 'teacher' ? null : 'Demo Teacher',
-        student: user.role === 'teacher' ? 'Demo Student' : null,
-        date: 'Today',
-        time: '2:00 PM',
-        status: 'confirmed',
-        avatar: user.role === 'teacher' ? 'DS' : 'DT' // Demo Student/Teacher
-      });
-    }
 
-    // Personalized recent messages
+    const allUserSessions = await Session.find({
+      $or: [
+        { student: req.user._id },
+        { teacher: req.user._id }
+      ]
+    }).populate('student', 'name avatar').populate('teacher', 'name avatar');
+
+    
+
+    // Now try the original filtered query
+    const upcomingSessions = await Session.find({
+      $or: [
+        { student: req.user._id },
+        { teacher: req.user._id }
+      ],
+      status: { $in: ['pending', 'confirmed'] },
+      scheduledDate: { $gte: new Date() } // Only future sessions
+    })
+    .populate('student', 'name avatar')
+    .populate('teacher', 'name avatar')
+    .sort({ scheduledDate: 1 })
+    .limit(5);
+
+   
+
+    // Format sessions for frontend
+    const formattedSessions = upcomingSessions.map(session => ({
+      id: session._id,
+      type: session.student.toString() === req.user._id.toString() ? 'learning' : 'teaching',
+      skill: session.skill,
+      teacher: session.student.toString() === req.user._id.toString() ? session.teacher.name : null,
+      student: session.teacher.toString() === req.user._id.toString() ? session.student.name : null,
+      date: session.scheduledDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: session.scheduledDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+      }),
+      time: session.scheduledDate.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      }),
+      status: session.status,
+      avatar: session.student.toString() === req.user._id.toString() 
+        ? (session.teacher.avatar || session.teacher.name.split(' ').map(n => n[0]).join('').toUpperCase())
+        : (session.student.avatar || session.student.name.split(' ').map(n => n[0]).join('').toUpperCase())
+    }));
+
+    // For now, keep mock messages (we'll implement real chat later)
     const recentMessages = [];
     
-    if (user.stats.totalSessions > 0) {
+    if (upcomingSessions.length > 0) {
+      const otherPerson = upcomingSessions[0].student.toString() === req.user._id.toString() 
+        ? upcomingSessions[0].teacher 
+        : upcomingSessions[0].student;
+      
       recentMessages.push({
         id: '1',
-        name: user.role === 'teacher' ? 'Demo Student' : 'Demo Teacher',
-        message: user.role === 'teacher' 
-          ? `Thanks for the great ${user.teachingSkills.length > 0 ? user.teachingSkills[0].skill : 'tutoring'} session!`
-          : `Looking forward to our next ${user.learningSkills.length > 0 ? user.learningSkills[0].skill : 'learning'} session!`,
+        name: otherPerson.name,
+        message: `Looking forward to our ${upcomingSessions[0].skill} session!`,
         time: '2 hours ago',
         unread: true,
-        avatar: user.role === 'teacher' ? 'DS' : 'DT'
+        avatar: otherPerson.avatar || otherPerson.name.split(' ').map(n => n[0]).join('').toUpperCase()
       });
     }
 
@@ -196,16 +231,16 @@ router.get('/dashboard', protect, async (req, res) => {
           name: user.name,
           avatar: user.avatar || user.name.split(' ').map(n => n[0]).join('').toUpperCase()
         },
-        upcomingSessions,
+        upcomingSessions: formattedSessions, // Now real sessions!
         recentMessages,
         stats,
         quickActions,
-        hasActivity: user.stats.totalSessions > 0
+        hasActivity: upcomingSessions.length > 0 || user.stats.totalSessions > 0
       }
     });
 
   } catch (error) {
-    console.error('Get dashboard error:', error);
+    console.error('❌ Dashboard error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error fetching dashboard data',
