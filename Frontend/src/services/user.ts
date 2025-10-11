@@ -95,7 +95,7 @@ export const userService = {
   // Get user by ID
   getUserById: async (userId: string) => {
     const response = await api.get(`/users/${userId}`);
-    return response.data;
+    return response.data.data.user;
   },
 
   // Update user profile
