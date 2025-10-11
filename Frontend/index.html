@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Preview - Chariot</title>
+    <title>Swapp</title>
   </head>
   <body>
     <div id="root"></div>
@@ -17,7 +17,7 @@
         const sendError = (error) => {
           if (!error?.message) return; // only log errors with a message
 
-          fetch("/@chariot-logger", {
+          fetch("/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(error),
