@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { userService, Teacher, TeacherFilters } from "../services/user";
+import SessionBooking from "../components/SessionBooking";
 
 function Browse() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -15,6 +16,10 @@ function Browse() {
   });
   const [total, setTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [showBooking, setShowBooking] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+
 
   const skills = [
     "React", "JavaScript", "Python", "Spanish", "Guitar", 
@@ -67,6 +72,23 @@ function Browse() {
     setSearchQuery('');
   };
 
+  const handleBookSession = (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setShowBooking(true);
+  };
+
+  const handleBookingClose = () => {
+    setShowBooking(false);
+    setSelectedTeacher(null);
+  };
+
+  const handleBookingSuccess = () => {
+    // Refresh the page or reload data to show updated state
+    loadTeachers();
+    // You could also show a success message here
+    alert('Session booked successfully! Check your dashboard for details.');
+  };
+
   if (loading && teachers.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -89,6 +111,7 @@ function Browse() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Your Perfect Teacher</h1>
         <p className="text-gray-600">Browse through our community of expert teachers and book your next learning session</p>
       </div>
+      
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
@@ -263,13 +286,23 @@ function Browse() {
               >
                 Message
               </Link>
-              <button className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+              <button 
+              onClick={() => handleBookSession(teacher)}
+              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
                 Book Session
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {showBooking && selectedTeacher && (
+    <SessionBooking
+      teacher={selectedTeacher}
+      onClose={handleBookingClose}
+      onBookingSuccess={handleBookingSuccess}
+    />
+  )}
 
       {/* No Results */}
       {!loading && teachers.length === 0 && (
