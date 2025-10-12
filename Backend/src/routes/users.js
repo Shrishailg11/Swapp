@@ -2,7 +2,8 @@ import express from 'express';
 import { protect } from '../middleware/auth.js';
 import User from '../models/User.js';
 import Session from '../models/Session.js';
-
+import Message from '../models/Message.js'; 
+                                                                                                                                                        
 const router = express.Router();
 
 // @desc    Get current user profile
@@ -177,22 +178,91 @@ router.get('/dashboard', protect, async (req, res) => {
         : (session.student.avatar || session.student.name.split(' ').map(n => n[0]).join('').toUpperCase())
     }));
 
-    // For now, keep mock messages (we'll implement real chat later)
-    const recentMessages = [];
+    // Get real conversations instead of mock messages
+    let recentMessages = [];
     
-    if (upcomingSessions.length > 0) {
-      const otherPerson = upcomingSessions[0].student.toString() === req.user._id.toString() 
-        ? upcomingSessions[0].teacher 
-        : upcomingSessions[0].student;
+    try {
+      // Get user's recent conversations
+      const conversations = await Message.aggregate([
+        {
+          $match: {
+            $or: [
+              { sender: req.user._id },
+              { receiver: req.user._id }
+            ]
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        },
+        {
+          $group: {
+            _id: {
+              $cond: {
+                if: { $eq: ['$sender', req.user._id] },
+                then: '$receiver',
+                else: '$sender'
+              }
+            },
+            lastMessage: { $first: '$$ROOT' },
+            unreadCount: {
+              $sum: {
+                $cond: [
+                  { 
+                    $and: [
+                      { $eq: ['$receiver', req.user._id] },
+                      { $eq: ['$isRead', false] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        },
+        { $limit: 3 } // Show up to 3 recent conversations
+      ]);
       
-      recentMessages.push({
-        id: '1',
-        name: otherPerson.name,
-        message: `Looking forward to our ${upcomingSessions[0].skill} session!`,
-        time: '2 hours ago',
-        unread: true,
-        avatar: otherPerson.avatar || otherPerson.name.split(' ').map(n => n[0]).join('').toUpperCase()
-      });
+      // Populate user details
+      const populatedConversations = await Promise.all(
+        conversations.map(async (conv) => {
+          const user = await User.findById(conv._id).select('name avatar');
+          return {
+            id: conv._id.toString(),
+            name: user.name,
+            message: conv.lastMessage.content,
+            time: new Date(conv.lastMessage.createdAt).toLocaleString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+              day: 'numeric',
+              month: 'short'
+            }),
+            unread: conv.unreadCount > 0,
+            avatar: user.avatar || user.name.split(' ').map(n => n[0]).join('').toUpperCase()
+          };
+        })
+      );
+      
+      recentMessages = populatedConversations;
+    } catch (convError) {
+      console.error('Error loading conversations for dashboard:', convError);
+      // Fall back to session-based messages if conversations fail
+      if (upcomingSessions.length > 0) {
+        const otherPerson = upcomingSessions[0].student.toString() === req.user._id.toString() 
+          ? upcomingSessions[0].teacher 
+          : upcomingSessions[0].student;
+        
+        recentMessages = [{
+          id: '1',
+          name: otherPerson.name,
+          message: `Looking forward to our ${upcomingSessions[0].skill} session!`,
+          time: '2 hours ago',
+          unread: false,
+          avatar: otherPerson.avatar || otherPerson.name.split(' ').map(n => n[0]).join('').toUpperCase()
+        }];
+      }
     }
 
     // Real stats from user data
