@@ -17,6 +17,8 @@ function Browse() {
   });
   const [total, setTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [showBooking, setShowBooking] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
@@ -35,8 +37,15 @@ function Browse() {
     try {
       setLoading(true);
       const response = await userService.getTeachers(filters);
-      setTeachers(response.data);
+      // If it's the first page, replace the teachers array, otherwise append to it
+      if (filters.page === 1) {
+        setTeachers(response.data);
+      } else {
+        setTeachers(prev => [...prev, ...response.data]);
+      }
       setTotal(response.total);
+      setHasMore(response.pagination.current < response.pagination.total);
+      setCurrentPage(response.pagination.current);
       setError('');
     } catch (error: any) {
       setError(error.message || 'Failed to load teachers');
@@ -71,6 +80,13 @@ function Browse() {
       page: 1
     });
     setSearchQuery('');
+  };
+
+  const handleLoadMore = () => {
+    setFilters(prev => ({
+      ...prev,
+      page: (prev.page || 1) + 1
+    }));
   };
 
   const handleBookSession = (teacher: Teacher) => {
@@ -320,14 +336,15 @@ function Browse() {
         </div>
       )}
 
-      {/* Load More - Placeholder for pagination */}
-      {teachers.length > 0 && total > teachers.length && (
+      {/* Load More Button */}
+      {hasMore && (
         <div className="text-center mt-8">
           <button 
-            className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-            onClick={() => handleFilterChange('page', (filters.page || 1) + 1)}
+            className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+            onClick={handleLoadMore}
+            disabled={loading}
           >
-            Load More Teachers
+            {loading ? 'Loading...' : 'Load More Teachers'}
           </button>
         </div>
       )}

@@ -71,9 +71,22 @@ export interface UserProfile {
   };
 }
 
+// Define the response structure for getTeachers
+interface GetTeachersResponse {
+  success: boolean;
+  count: number;
+  total: number;
+  pagination: {
+    current: number;
+    total: number;
+    limit: number;
+  };
+  data: Teacher[];
+}
+
 export const userService = {
   // Get all teachers with filters
-  getTeachers: async (filters: TeacherFilters = {}) => {
+  getTeachers: async (filters: TeacherFilters = {}): Promise<GetTeachersResponse> => {
     const params = new URLSearchParams();
     
     if (filters.skill) params.append('skill', filters.skill);
