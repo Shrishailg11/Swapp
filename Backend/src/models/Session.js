@@ -52,6 +52,23 @@ const sessionSchema = new mongoose.Schema({
   completedAt: {
     type: Date
   },
+  // New field for tracking if a review has been submitted
+  reviewSubmitted: {
+    type: Boolean,
+    default: false
+  },
+  // New field for storing the review rating
+  reviewRating: {
+    type: Number,
+    min: 1,
+    max: 5,
+    default: null
+  },
+  // New field for storing review comments
+  reviewComment: {
+    type: String,
+    maxlength: 500
+  },
   createdAt: {
     type: Date,
     default: Date.now
