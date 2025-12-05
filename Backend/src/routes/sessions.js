@@ -135,6 +135,47 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// @desc    Get single session by ID
+// @route   GET /api/sessions/:id
+// @access  Private
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id)
+      .populate('student', 'name email avatar')
+      .populate('teacher', 'name email avatar');
+    
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+    
+    // Check if user is authorized to view this session
+    if (session.student._id.toString() !== req.user._id.toString() && 
+        session.teacher._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to view this session'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        session
+      }
+    });
+    
+  } catch (error) {
+    console.error('Get session error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching session'
+    });
+  }
+});
+
 // @desc    Update session status
 // @route   PUT /api/sessions/:id/status
 // @access  Private
@@ -217,6 +258,97 @@ router.put('/:id/status', protect, async (req, res) => {
     }
   });
 
+// @desc    Submit a review for a session
+// @route   POST /api/sessions/:id/review
+// @access  Private (only students can submit reviews)
+router.post('/:id/review', protect, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const sessionId = req.params.id;
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    // Find the session
+    const session = await Session.findById(sessionId)
+      .populate('teacher', 'name teachingSkills stats')
+      .populate('student', 'name');
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    // Check if user is the student in this session
+    if (session.student._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only students can submit reviews for their sessions'
+      });
+    }
+
+    // Check if session is completed
+    if (session.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only review completed sessions'
+      });
+    }
+
+    // Check if review already submitted
+    if (session.reviewSubmitted) {
+      return res.status(400).json({
+        success: false,
+        message: 'Review already submitted for this session'
+      });
+    }
+
+    // Update session with review
+    session.reviewRating = rating;
+    session.reviewComment = comment;
+    session.reviewSubmitted = true;
+    await session.save();
+
+    // Update teacher's rating statistics
+    const teacher = await User.findById(session.teacher._id);
+    if (teacher) {
+      // Use the new method to update rating
+      await teacher.updateRating(rating);
+
+      // Update skill-specific rating if applicable
+      const skillIndex = teacher.teachingSkills.findIndex(s => s.skill === session.skill);
+      if (skillIndex !== -1) {
+        // For simplicity, we're using the overall rating for the skill as well
+        // In a more complex system, you might want separate skill ratings
+        teacher.teachingSkills[skillIndex].rating = teacher.stats.averageRating;
+      }
+
+      await teacher.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Review submitted successfully',
+      data: {
+        session
+      }
+    });
+
+  } catch (error) {
+    console.error('Submit review error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error submitting review'
+    });
+  }
+});
 // @desc    Get teacher availability for a specific date
 // @route   GET /api/sessions/availability/:teacherId
 // @access  Public
