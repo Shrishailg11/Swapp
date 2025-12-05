@@ -23,6 +23,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import sessionRoutes from './routes/sessions.js';
 import messageRoutes from './routes/messages.js';
+import videoRoutes from './routes/video.js';
 
 // Load environment variables
 dotenv.config();
@@ -56,7 +57,8 @@ app.use(compression()); // Compress responses
 // app.use(morgan('combined')); // Logging
 app.use(limiter); // Rate limiting
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: '*',
+  // origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -69,6 +71,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/sessions',sessionRoutes);
 app.use('/api/messages',messageRoutes);
+app.use('/api/video', videoRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Teacher } from '../services/user';
+import { Teacher, userService } from '../services/user';
+import { API_BASE_URL } from '../services/api';
 
 
 interface AvailabilitySlot {
@@ -15,7 +16,7 @@ interface SessionBookingProps {
 }
 
 function SessionBooking({ teacher, onClose, onBookingSuccess }: SessionBookingProps) {
-  const { user } = useAuth(); // Get user for coin balance check
+  const { user, updateUser } = useAuth(); // Get user and update function
   const [selectedSkill, setSelectedSkill] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -35,7 +36,7 @@ function SessionBooking({ teacher, onClose, onBookingSuccess }: SessionBookingPr
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:5000/api/sessions/availability/${teacher._id}?date=${selectedDate}`
+        `${API_BASE_URL}/sessions/availability/${teacher._id}?date=${selectedDate}`
       );
       const data = await response.json();
       
@@ -132,27 +133,55 @@ function SessionBooking({ teacher, onClose, onBookingSuccess }: SessionBookingPr
     setBooking(true);
     try {
       const scheduledDateTime = new Date(selectedDate);
-      const [hours, minutes] = selectedTime.split(':');
-      scheduledDateTime.setHours(parseInt(hours.split(' ')[0]), parseInt(minutes));
-      
-      const response = await fetch('http://localhost:5000/api/sessions', {
+      // Parse time correctly (e.g., "9:00 AM" -> hours: 9, minutes: 0)
+      const [time, period] = selectedTime.split(' ');
+      const [hoursStr, minutesStr] = time.split(':');
+      let hours = parseInt(hoursStr);
+      const minutes = parseInt(minutesStr);
+
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+
+      scheduledDateTime.setHours(hours, minutes);
+
+      // Check if the selected date/time is in the future
+      const now = new Date();
+      if (scheduledDateTime <= now) {
+        alert('Please select a future date and time for your session.');
+        setBooking(false);
+        return;
+      }
+
+      const requestData = {
+        teacherId: teacher._id,
+        skill: selectedSkill,
+        scheduledDate: scheduledDateTime.toISOString(),
+        duration,
+        notes
+      };
+
+      const response = await fetch(`${API_BASE_URL}/sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({
-          teacherId: teacher._id,
-          skill: selectedSkill,
-          scheduledDate: scheduledDateTime.toISOString(),
-          duration,
-          notes
-        })
+        body: JSON.stringify(requestData)
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
+        // Refresh user data to update wallet balance
+        try {
+          const profileResponse = await userService.getCurrentProfile();
+          if (profileResponse.success) {
+            updateUser(profileResponse.data.user);
+          }
+        } catch (error) {
+          console.error('Failed to refresh user data:', error);
+        }
+
         alert('Session booked successfully!');
         onBookingSuccess();
         onClose();

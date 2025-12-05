@@ -1,12 +1,15 @@
 import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
+import { API_BASE_URL } from './api';
+
+const BACKEND_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
 class SocketService {
   private socket: Socket | null = null;
   
   connect(userId: string) {
     console.log('🔌 Creating socket connection...');
-    this.socket = io('http://localhost:5000');
+    this.socket = io(BACKEND_BASE_URL);
     
     this.socket.on('connect', () => {
       console.log('✅ Socket connected, joining room:', userId);

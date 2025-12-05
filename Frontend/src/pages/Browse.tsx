@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { userService, Teacher, TeacherFilters } from "../services/user";
 import SessionBooking from "../components/SessionBooking";
 
 function Browse() {
+  const navigate = useNavigate();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -83,10 +84,8 @@ function Browse() {
   };
 
   const handleBookingSuccess = () => {
-    // Refresh the page or reload data to show updated state
-    loadTeachers();
-    // You could also show a success message here
-    alert('Session booked successfully! Check your dashboard for details.');
+    // Redirect to dashboard where user can see their newly booked session
+    navigate('/dashboard');
   };
 
   if (loading && teachers.length === 0) {

@@ -7,9 +7,11 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "kill": "npx kill-port 5173"
   },
   "dependencies": {
+    "agora-rtc-sdk-ng": "^4.24.0",
     "axios": "^1.6.2",
     "framer-motion": "^12.4.7",
     "lucide-react": "^0.477.0",

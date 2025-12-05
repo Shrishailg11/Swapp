@@ -11,6 +11,7 @@ import Browse from "./pages/Browse";
 import Chat from "./pages/Chat";
 import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
+import VideoCall from "./pages/VideoCall";
 
 function App() {
   return (
@@ -37,6 +38,11 @@ function App() {
           <Route path="/chat" element={
             <ProtectedRoute>
               <Layout><Chat /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/call/:sessionId" element={
+            <ProtectedRoute>
+              <Layout><VideoCall /></Layout>
             </ProtectedRoute>
           } />
           <Route path="/wallet" element={

@@ -47,14 +47,19 @@ function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const response = await userService.getDashboard();
       setDashboardData(response.data);
       setError('');
@@ -63,7 +68,12 @@ function Dashboard() {
       console.error('Dashboard error:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    loadDashboardData(true);
   };
 
   if (loading) {
@@ -103,15 +113,27 @@ function Dashboard() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Welcome Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {dashboardData.user.name.split(' ')[0]}!
-        </h1>
-        <p className="text-gray-600">
-          {dashboardData.hasActivity 
-            ? "Here's what's happening with your learning journey"
-            : "Ready to start your learning journey?"
-          }
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Welcome back, {dashboardData.user.name.split(' ')[0]}!
+            </h1>
+            <p className="text-gray-600">
+              {dashboardData.hasActivity
+                ? "Here's what's happening with your learning journey"
+                : "Ready to start your learning journey?"
+              }
+            </p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className={refreshing ? 'animate-spin' : ''}>🔄</span>
+            <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -216,6 +238,16 @@ function Dashboard() {
                       }`}>
                         {session.status}
                       </span>
+                      {session.status === 'confirmed' && (
+                        <div className="mt-2">
+                          <Link
+                            to={`/call/${session.id}`}
+                            className="text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Join Call
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

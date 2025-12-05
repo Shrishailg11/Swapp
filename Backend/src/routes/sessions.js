@@ -11,7 +11,7 @@ const router = express.Router();
 router.post('/', protect, async (req, res) => {
   try {
     const { teacherId, skill, scheduledDate, duration, notes } = req.body;
-    
+
     // Validate teacher exists and teaches the skill
     const teacher = await User.findById(teacherId);
     if (!teacher || (teacher.role !== 'teacher' && teacher.role !== 'both')) {
@@ -31,18 +31,18 @@ router.post('/', protect, async (req, res) => {
       });
     }
     const sessionCost = skillData.hourlyRate * (duration / 60);
-    
+
     if (req.user.wallet.balance < sessionCost) {
       return res.status(400).json({
         success: false,
         message: `Insufficient coins. You need ${sessionCost} coins but only have ${req.user.wallet.balance}.`
       });
     }
-    
+
     const startTime = new Date(scheduledDate);
     const sessionDuration = duration || 60;
-    
-    
+
+
     // Check availability
     const isAvailable = await Session.checkAvailability(teacherId, startTime, sessionDuration);
     if (!isAvailable) {
@@ -52,7 +52,12 @@ router.post('/', protect, async (req, res) => {
       });
     }
     
-    // Create session
+    // Deduct coins from student wallet immediately on booking
+    req.user.wallet.balance -= sessionCost;
+    req.user.stats.coinsSpent += sessionCost;
+    await req.user.save();
+
+    // Create session (auto-confirm for immediate availability)
     const session = await Session.create({
       student: req.user._id,
       teacher: teacherId,
@@ -60,13 +65,11 @@ router.post('/', protect, async (req, res) => {
       scheduledDate: startTime,
       duration: sessionDuration,
       price: skillData.hourlyRate,
-      notes
+      notes,
+      status: 'confirmed' // Auto-confirm sessions for immediate booking
     });
-    
-    console.log('✅ Session created:', session._id);
-    
-    // Populate teacher data
-    await session.populate('teacher', 'name email avatar');
+
+    console.log('✅ Session created and coins deducted:', session._id);
     
     res.status(201).json({
       success: true,
@@ -159,35 +162,33 @@ router.put('/:id/status', protect, async (req, res) => {
       
       // Handle coin transactions based on status change
       if (status === 'completed' && session.status !== 'completed') {
-        // Transfer coins: Student → Teacher
-        const student = await User.findById(session.student);
+        // Transfer coins to teacher (coins were already deducted from student at booking)
         const teacher = await User.findById(session.teacher);
-        
-        if (student && teacher) {
-          if (student.wallet.balance < session.price) {
-            return res.status(400).json({
-              success: false,
-              message: 'Student has insufficient coins for this session'
-            });
-          }
-          
-          // Perform the transfer
-          student.wallet.balance -= session.price;
+
+        if (teacher) {
+          // Add coins to teacher's wallet and update stats
           teacher.wallet.balance += session.price;
-          
-          // Update stats
-          student.stats.coinsSpent += session.price;
           teacher.stats.coinsEarned += session.price;
-          
-          await student.save();
+
+          // Update teacher's skill stats
+          const skillIndex = teacher.teachingSkills.findIndex(s => s.skill === session.skill);
+          if (skillIndex !== -1) {
+            teacher.teachingSkills[skillIndex].sessions += 1;
+          }
+
           await teacher.save();
-          
-          console.log(`💰 Coin transfer: ${session.price} coins from student to teacher`);
+
+          console.log(`💰 Coin transfer: ${session.price} coins to teacher`);
         }
       } else if (status === 'cancelled' && req.user._id.toString() === session.student.toString()) {
-        // Optional: Refund coins to student on cancellation
-        // This depends on your cancellation policy
-        console.log('📝 Session cancelled - consider refund policy');
+        // Refund coins to student on cancellation (if cancelled by student)
+        const student = await User.findById(session.student);
+        if (student) {
+          student.wallet.balance += session.price;
+          student.stats.coinsSpent -= session.price;
+          await student.save();
+          console.log(`💰 Coin refund: ${session.price} coins returned to student`);
+        }
       }
       
       session.status = status;
