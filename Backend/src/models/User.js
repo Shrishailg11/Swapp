@@ -212,6 +212,21 @@ userSchema.statics.findTeachersBySkill = function(skill, options = {}) {
     .skip(options.skip || 0);
 };
 
+// Method to update teacher rating
+userSchema.methods.updateRating = function(newRating) {
+  // Calculate new average rating
+  const currentTotalRating = this.stats.averageRating * this.stats.totalReviews;
+  const newTotalRating = currentTotalRating + newRating;
+  const newTotalReviews = this.stats.totalReviews + 1;
+  const newAverageRating = newTotalRating / newTotalReviews;
+
+  // Update stats
+  this.stats.averageRating = newAverageRating;
+  this.stats.totalReviews = newTotalReviews;
+
+  return this.save();
+};
+
 const User = mongoose.model('User', userSchema);
 
 export default User;
