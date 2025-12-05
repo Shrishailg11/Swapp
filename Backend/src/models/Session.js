@@ -69,6 +69,16 @@ const sessionSchema = new mongoose.Schema({
     type: String,
     maxlength: 500
   },
+  // New field to track if session was completed early
+  completedEarly: {
+    type: Boolean,
+    default: false
+  },
+  // New field to store reason for early completion
+  earlyCompletionReason: {
+    type: String,
+    maxlength: 200
+  },
   createdAt: {
     type: Date,
     default: Date.now
