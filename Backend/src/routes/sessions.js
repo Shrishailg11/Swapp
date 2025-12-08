@@ -181,7 +181,7 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private
 router.put('/:id/status', protect, async (req, res) => {
     try {
-      const { status, cancellationReason } = req.body;
+      const { status, cancellationReason, completedEarly = false } = req.body;
       
       const session = await Session.findById(req.params.id);
       
@@ -238,6 +238,7 @@ router.put('/:id/status', protect, async (req, res) => {
         session.cancelledBy = req.user._id;
       } else if (status === 'completed') {
         session.completedAt = new Date();
+        session.completedEarly = completedEarly;
       }
       
       await session.save();
@@ -302,6 +303,8 @@ router.post('/:id/review', protect, async (req, res) => {
       });
     }
 
+    // For early completed sessions, we still want to collect feedback
+    // but we might adjust the review process or incentives
     // Check if review already submitted
     if (session.reviewSubmitted) {
       return res.status(400).json({

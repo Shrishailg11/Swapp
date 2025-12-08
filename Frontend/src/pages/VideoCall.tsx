@@ -24,6 +24,7 @@ function VideoCall() {
   const [loading, setLoading] = useState(true);
   const [callStartTime, setCallStartTime] = useState<Date | null>(null);
   const [callEndTime, setCallEndTime] = useState<Date | null>(null);
+  const [showEarlyCompletion, setShowEarlyCompletion] = useState(false);
 
   // Fetch session data
   useEffect(() => {
@@ -146,12 +147,24 @@ function VideoCall() {
         updateSessionStatus('completed');
         setShowReview(true);
       } else {
-        // Just navigate back without review
-        navigate('/dashboard');
+        // Show early completion option if call was shorter than expected
+        setShowEarlyCompletion(true);
       }
     } else {
       navigate('/dashboard');
     }
+  };
+
+  const handleEarlyCompletion = async () => {
+    // Mark session as completed with early completion flag
+    await updateSessionStatus('completed', true);
+    setShowEarlyCompletion(false);
+    setShowReview(true);
+  };
+
+  const handleCancelEarlyCompletion = () => {
+    setShowEarlyCompletion(false);
+    navigate('/dashboard');
   };
 
   const shouldAskForReview = (): boolean => {
@@ -159,19 +172,22 @@ function VideoCall() {
     
     // Calculate call duration in minutes
     const callDurationMinutes = (callEndTime.getTime() - callStartTime.getTime()) / (1000 * 60);
-    
+  
     // Get session scheduled duration
     const scheduledDuration = sessionData.duration || 60;
-    
+  
     // Ask for review if:
     // 1. Call lasted more than 5 minutes, OR
-    // 2. Call lasted at least 50% of the scheduled duration
-    return callDurationMinutes > 5 || callDurationMinutes >= (scheduledDuration * 0.5);
+    // 2. Call lasted at least 30% of the scheduled duration, OR
+    // 3. Session was marked as completed early (meaningful session despite short duration)
+    return callDurationMinutes > 5 || 
+           callDurationMinutes >= (scheduledDuration * 0.3) ||
+           sessionData.completedEarly === true;
   };
 
-  const updateSessionStatus = async (status: string) => {
+  const updateSessionStatus = async (status: string, completedEarly: boolean = false) => {
     if (!sessionId) return;
-    
+  
     try {
       const token = localStorage.getItem('token');
       await fetch(`${API_BASE_URL}/sessions/${sessionId}/status`, {
@@ -180,7 +196,7 @@ function VideoCall() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, completedEarly })
       });
     } catch (error) {
       console.error('Error updating session status:', error);
@@ -250,6 +266,35 @@ function VideoCall() {
           onClose={handleCloseReview}
           onSubmit={submitReview}
         />
+      )}
+      
+      {showEarlyCompletion && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Session Ended Early</h2>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
+              Did you and your {sessionData?.student?._id === localStorage.getItem('userId') ? 'teacher' : 'student'} accomplish the learning goals for this session?
+            </p>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={handleCancelEarlyCompletion}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                No, Session Incomplete
+              </button>
+              <button
+                onClick={handleEarlyCompletion}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Yes, Mark as Complete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
