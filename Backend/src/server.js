@@ -10,7 +10,6 @@ import { Server } from 'socket.io';
 import http from 'http';
 
 
-
 // Import configurations
 import connectDB from './config/database.js';
 
@@ -24,6 +23,7 @@ import userRoutes from './routes/users.js';
 import sessionRoutes from './routes/sessions.js';
 import messageRoutes from './routes/messages.js';
 import videoRoutes from './routes/video.js';
+import queryRoutes from './routes/queries.js';
 
 // Load environment variables
 dotenv.config();
@@ -72,6 +72,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/sessions',sessionRoutes);
 app.use('/api/messages',messageRoutes);
 app.use('/api/video', videoRoutes);
+app.use('/api/queries', queryRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
