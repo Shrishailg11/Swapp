@@ -76,6 +76,10 @@ function Dashboard() {
     loadDashboardData(true);
   };
 
+  const handleRetry = () => {
+    loadDashboardData();
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -97,7 +101,7 @@ function Dashboard() {
           <p className="text-gray-500 mb-4">Failed to load dashboard</p>
           <p className="text-sm text-gray-400">{error}</p>
           <button
-            onClick={loadDashboardData}
+            onClick={handleRetry}
             className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
           >
             Try Again
@@ -332,6 +336,14 @@ function Dashboard() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
             <div className="space-y-3">
+              <Link 
+                to="/queries" 
+                className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <span className="text-2xl">🤝</span>
+                <span className="font-medium text-gray-700">Community Help Board</span>
+              </Link>
+              
               {quickActions.map((action) => (
                 <Link 
                   key={action.id}
